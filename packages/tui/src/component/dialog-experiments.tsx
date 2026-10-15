@@ -14,13 +14,7 @@ type Experiment = {
 // In-flight features anyone can opt into. Each entry is temporary: an
 // experiment either graduates (delete the entry, make the behavior
 // unconditional) or dies (delete the entry and the branch it gated).
-export const experiments: Experiment[] = [
-  {
-    id: "diff-panel",
-    title: "Diff side panel",
-    description: "Open /diff in a panel beside the session instead of full screen",
-  },
-]
+export const experiments: Experiment[] = []
 
 export function DialogExperiments() {
   const config = useConfig()
@@ -67,7 +61,7 @@ export function DialogExperiments() {
           <text fg={theme.text.muted}>No experiments available</text>
         </box>
       }
-      footerHints={experiments.length > 0 ? [{ title: "←/→", label: "change" }] : []}
+      footerHints={experiments.length > 0 ? [{ title: "change", label: "←/→" }] : []}
       bindings={
         experiments.length > 0
           ? [
