@@ -846,7 +846,8 @@ function createSchema() {
     // A multiplier on the entrance's timing: 2 plays it in half the time.
     footerWordmarkSpeed: z.number().min(0.5).max(2).catch(1),
     footerWordmarkPlay: z.enum(footerWordmarkPlays).catch("drag"),
-    // window.opencode and its DevTools greeting (lib/console-api.ts), loaded once the page is idle.
+    // window.opencode, its DevTools greeting and OpenCode Lite starting when DevTools opens
+    // (lib/console-api.ts), loaded once the page is idle.
     consoleApi: z.enum(toggles).catch("on"),
     // The light, dark and system switch at the bottom of the footer.
     themeSwitcher: z.enum(toggles).catch("on"),
@@ -1136,12 +1137,16 @@ const defaults = siteSettingsDefaults
  * has no Settings panel or Design mode, so it always uses the defaults: a designer's saved settings
  * never change what visitors see.
  */
-export const [siteSettings, setStore] = createStore<SiteSettings>(structuredClone(defaults))
+// Production reads every setting as its default's constant (script/fold-settings.ts, which fails the
+// build on any other read), so its store starts empty and the defaults stay out of the bundle.
+export const [siteSettings, setStore] = createStore<SiteSettings>(
+  import.meta.env.DEV ? structuredClone(defaults) : ({} as SiteSettings),
+)
 
 // Set once the saved settings are loaded in full, after hydration.
 let loaded = false
 // The values as of the last save, load or undo, so a save can record what it changed.
-let recorded = structuredClone(defaults)
+let recorded = /* @__PURE__ */ structuredClone(defaults)
 
 export function loadSiteSettings() {
   loaded = true

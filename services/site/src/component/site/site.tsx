@@ -33,7 +33,7 @@ import { useI18n } from "~/context/i18n"
 import type { Key } from "~/i18n"
 import { useLanguage } from "~/context/language"
 import { strip } from "~/lib/language"
-import { brandAssets } from "~/lib/brand-content"
+import { brandAssets } from "~/lib/media"
 import { status, type ServiceStatus } from "~/lib/status"
 import { useViewportCover } from "~/lib/viewport"
 import { LiveMeta } from "~/component/head-meta"
@@ -1141,7 +1141,7 @@ export function Site(props: {
           ones one step more specific until the store takes over. */}
       <style
         innerHTML={
-          spacerGradientRule(siteSettings, "") +
+          (siteSettings.spacer === "dot gradient" ? spacerGradientRule(siteSettings, "") : "") +
           (siteSettings.spacer === "dither gradient" ? ditherGradientRule(siteSettings, "") : "")
         }
       />
