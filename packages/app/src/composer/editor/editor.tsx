@@ -175,6 +175,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
     })
   })
   let sync = INITIAL_EDITOR_SYNC_STATE
+  let firstFocus = true
 
   const updateCursor = () => {
     const cursor = editor && getCursorPosition(editor)
@@ -437,6 +438,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
               onBlur={keyboardFocus.leave}
               onFocus={(event) => {
                 keyboardFocus.enter(event.currentTarget)
+
+                // A request dock can replace the editor. Keyboard focus on the new editor must keep the draft's caret.
+                if (firstFocus && keyboardFocus.visible()) props.controller.restoreCaret()
+                firstFocus = false
                 props.controller.dispatch({ type: "focus.editor" })
               }}
             />
@@ -541,8 +546,9 @@ export function ComposerEditor(props: ComposerEditorProps) {
                   size="small"
                   class="me-3 gap-1.5 px-1.5"
                   onClick={() => {
-                    props.controller.dispatch({ type: "mode.normal" })
+                    // Before the mode change unmounts this button, so focus keeps its ring state.
                     props.controller.restoreFocus()
+                    props.controller.dispatch({ type: "mode.normal" })
                   }}
                 >
                   {i18n.t("ui.promptInput.exitShell")}
@@ -1639,8 +1645,8 @@ function ComposerEditorTouchBar(props: { controller: ComposerEditorModel; docked
             class="h-11 rounded-lg px-3 text-[15px] leading-5"
             onMouseDown={keep}
             onClick={() => {
-              props.controller.dispatch({ type: "mode.normal" })
               props.controller.restoreFocus()
+              props.controller.dispatch({ type: "mode.normal" })
             }}
           >
             {i18n.t("ui.promptInput.exitShell")}
