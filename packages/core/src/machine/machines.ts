@@ -14,10 +14,11 @@ import { MachineTable } from "./sql.js"
 
 /**
  * A machine's name, as a path will use it: `gpu:/work`. Two characters or more, so a Windows drive such as `C:` is
- * never a machine, and never `local`, which is the server's own machine.
+ * never a machine, and never `local`, which is the server's own machine. At most 63, like a DNS label, so the link's
+ * welcome, which carries the name, always fits in one Noise message.
  */
 export const Name = Schema.String.check(
-  Schema.isPattern(/^[a-z][a-z0-9-]+$/),
+  Schema.isPattern(/^[a-z][a-z0-9-]{1,62}$/),
   Schema.makeFilter((name) => name !== Environment.localID, { expected: "a name other than local" }),
 )
 
@@ -43,7 +44,7 @@ export class InvalidName extends Schema.TaggedError<InvalidName>()("Machines.Inv
   name: Schema.String,
 }) {
   override get message() {
-    return `${JSON.stringify(this.name)} is not a machine name. Use lowercase letters, digits and hyphens, starting with a letter, two characters or more, and not "local".`
+    return `${JSON.stringify(this.name)} is not a machine name. Use lowercase letters, digits and hyphens, starting with a letter, 2 to 63 characters, and not "local".`
   }
 }
 
@@ -92,8 +93,11 @@ export interface Interface {
   readonly get: (id: Environment.ID) => Effect.Effect<Environment.Interface, NotFound>
   /** The home directory in the hello of the machine's connection, failing with `NotSent` while it is offline. */
   readonly home: (id: Environment.ID) => Effect.Effect<string, NotFound | Machine.NotSent>
-  /** Serves one worker's connection, routed by the name in its hello, until it is lost or replaced. */
-  readonly connect: (connection: Machine.Connection) => Effect.Effect<void, NotFound>
+  /**
+   * Serves one worker's connection as the machine `id` until it is lost or replaced. `id` is the one the link's handshake
+   * proved, never one the worker named.
+   */
+  readonly connect: (id: Environment.ID, connection: Machine.Connection) => Effect.Effect<void, NotFound>
   /** Prints one join string for this machine, good once and for five minutes. A second invite replaces the first. */
   readonly invite: (
     id: Environment.ID,
@@ -121,6 +125,8 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const db = (yield* Database.Service).db
     const identity = yield* Identity.Service
+    // The work under each name's lock is uninterruptible, so an interruption, such as a dropped connection mid-join,
+    // never leaves a row written without memory updated to match; waiting for the lock stays interruptible.
     const locks = KeyedMutex.makeUnsafe<Environment.ID>()
     // Known names are read once per process; a machine another process adds or removes in the shared database shows up
     // here on restart, as with process-local session execution until clustering. Live connections stay in the dialling process.
@@ -159,7 +165,7 @@ const layer = Layer.effect(
             // A row another process wrote is still a known machine, so it is taken into memory either way.
             instances.set(id, Machine.make(id))
             if (!inserted) return yield* new AlreadyExists({ machine: id })
-          }),
+          }).pipe(Effect.uninterruptible),
         )
         return id
       }),
@@ -173,7 +179,7 @@ const layer = Layer.effect(
             keys.delete(id)
             instances.delete(id)
             machine.close(new NotFound({ machine: id }))
-          }),
+          }).pipe(Effect.uninterruptible),
         )
       }),
       list: Effect.fn("Machines.list")(function* () {
@@ -198,8 +204,7 @@ const layer = Layer.effect(
         if (!hello) return yield* new Machine.NotSent({ machine: id })
         return hello.home
       }),
-      connect: Effect.fn("Machines.connect")(function* (connection) {
-        const id = Environment.ID.make(connection.hello.name)
+      connect: Effect.fn("Machines.connect")(function* (id, connection) {
         const machine = instances.get(id)
         if (!machine) return yield* new NotFound({ machine: id })
         yield* machine.connect(connection)
@@ -245,7 +250,7 @@ const layer = Layer.effect(
               .pipe(Effect.orDie)
             if (!written) return yield* new InvalidJoin()
             keys.set(id, key)
-          }),
+          }).pipe(Effect.uninterruptible),
         )
         return id
       }),
