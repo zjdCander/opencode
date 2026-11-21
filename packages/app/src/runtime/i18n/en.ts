@@ -121,6 +121,7 @@ export const dict = {
   "command.session.export.description": "Export the full session transcript as JSON",
   "command.session.import": "Import session",
   "command.session.copyID": "Copy Session ID",
+  "command.session.archive": "Archive session",
   "command.session.rename": "Rename session",
   "command.session.delete": "Delete session",
 
@@ -595,6 +596,8 @@ export const dict = {
   "notification.session.responseReady.title": "Response ready",
   "notification.session.error.title": "Session error",
   "notification.session.error.fallbackDescription": "An error occurred",
+  "notification.taskbar.badge.one": "{{count}} session needs you",
+  "notification.taskbar.badge.other": "{{count}} sessions need you",
 
   "home.title": "Home",
   "home.projects": "Projects",
